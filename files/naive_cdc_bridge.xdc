@@ -7,6 +7,9 @@
 # negative WNS. Screenshot that number as the "before" CDC-risk metric.
 #
 # DO NOT add set_clock_groups here -- the missing constraint is the point.
+#
+# Target-part independent: identical for Basys3 (xc7a35tcpg236-1) and ZedBoard
+# Zynq-7000 (xc7z020clg484-1). Switch parts at project creation, not here.
 #===============================================================================
 
 create_clock -name wclk -period 10.000 [get_ports wclk]

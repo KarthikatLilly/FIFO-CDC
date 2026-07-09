@@ -28,7 +28,7 @@ set script_dir [file normalize [file dirname [info script]]]
 set proj_root  [file normalize [file join $script_dir ..]]
 
 # Defaults (override with -tclargs).
-set PART      "xc7a35tcpg236-1" ;# Basys3 Artix-7; any 7-series/Zynq part is fine
+set PART      "xc7z020clg484-1" ;# ZedBoard Zynq-7000; any 7-series/Zynq part is fine
 set RUN_SIM   1
 set RUN_IMPL  1
 set RUN_NAIVE 1
