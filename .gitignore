@@ -1,0 +1,17 @@
+# Vivado generated project artifacts
+/VerilogRTL_FIFO-CDC/
+*.jou
+*.log
+*.str
+*.pb
+*.wdb
+*.xpr
+
+# Common Vivado output folders
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
+*.runs/
+*.gen/
+*.Xil/

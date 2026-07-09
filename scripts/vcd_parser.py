@@ -121,7 +121,7 @@ def frac_asserted(times, vals, t_end):
 def main():
     VCDVCD, plt = _import_deps()
 
-    default_path = os.path.join("..", "async_fifo_waveform.vcd")
+    default_path = os.path.join("..", "results", "async_fifo_waveform.vcd")
     path = sys.argv[1] if len(sys.argv) > 1 else default_path
     if not os.path.isfile(path):
         sys.exit(f"ERROR: VCD not found at '{path}'. Pass the path as arg 1.")
