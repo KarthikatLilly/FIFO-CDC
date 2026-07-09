@@ -100,4 +100,45 @@ Using the resolution time from the synchronized Timing Summary (roughly one rece
 
 ---
 
+## Batch Tcl Scripting (Non-Interactive)
+
+`scripts/build_vivado.tcl` rebuilds the entire flow headless — no GUI required. It creates the project, runs simulation, synthesis, implementation, all reports, and the separate naive "before" run, all driven by variables at the top of the script.
+
+### Basic Usage
+
+From the project root (`async-fifo-cdc/`):
+
+```bash
+vivado -mode batch -source scripts/build_vivado.tcl
+```
+
+To override the target part or skip stages, pass positional args — `part`, `run_sim`, `run_impl`, `run_naive`:
+
+```bash
+vivado -mode batch -source scripts/build_vivado.tcl -tclargs xc7z020clg400-1 1 1 0
+```
+
+That example targets a Zynq part and skips the naive run.
+
+### Where the Outputs Land
+
+| Output | Location |
+| --- | --- |
+| Testbench `METRIC:` lines | `vivado.log` in your launch directory — pull with `grep METRIC: vivado.log` |
+| WNS, WHS, computed Fmax | Printed to console at the end of the impl and naive sections |
+| Report files | `build/reports/` (`impl_timing_summary.rpt`, `impl_utilization.rpt`, `impl_cdc.rpt`, `naive_timing_summary.rpt`, etc.) |
+| Waveform | Copied to `build/async_fifo_waveform.vcd`; the script prints the exact Python command to run on it |
+
+### Design Decisions
+
+**No bitstream.** The flow stops at implementation plus reports. Every metric in the contract (WNS, Fmax, utilization, CDC, MTBF inputs) is available post-implementation, and skipping bitstream generation means unconstrained-I/O DRC checks never block the run — no pin-placement XDC needed just to get numbers.
+
+**Fmax derivation.** The console printout computes `1000 / (10.0 − WNS)` for the write-clock domain as a quick figure. For the authoritative number, read `impl_timing_summary.rpt` directly, since the limiting path could be in either clock domain.
+
+**Naive run is synthesis-only.** The naive bridge only goes through synthesis, not implementation. Synthesis with the missing `set_clock_groups` is already enough for Vivado to analyze the crossing as synchronous and report the large negative slack — and it sidesteps any place-and-route fuss on a two-flop design.
+
+**Caveat.** The script's Tcl control flow, path handling, and WNS/Fmax arithmetic have been validated with stubbed commands. The actual Vivado command behavior depends on your installed version. These are all stable, long-standing commands, so it should run clean — but if a `launch_simulation` runtime property or a `report_cdc` option ever complains on your specific version, those are isolated lines you can adjust without touching the rest.
+
+---
+
 After that, transcribe the numbers into `docs/metrics.md` (leaving anything a run hasn't yet produced blank) and you have the full contract filled: two directed tests plus a 10,000-transaction randomized run with coverage, the backpressure watermark accuracy, the before/after WNS pair, Fmax, MTBF, and utilization.
