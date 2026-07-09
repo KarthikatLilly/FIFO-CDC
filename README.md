@@ -142,3 +142,11 @@ That example targets a Zynq part and skips the naive run.
 ---
 
 After that, transcribe the numbers into `docs/metrics.md` (leaving anything a run hasn't yet produced blank) and you have the full contract filled: two directed tests plus a 10,000-transaction randomized run with coverage, the backpressure watermark accuracy, the before/after WNS pair, Fmax, MTBF, and utilization.
+
+### PowerShell Quick Run
+
+```powershell
+& ..\.venv\Scripts\Activate.ps1
+Set-Location .\scripts
+python .\vcd_parser.py
+```
