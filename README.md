@@ -1,4 +1,4 @@
-# Async FIFO-Based CDC Bridge with Backpressure
+# Async FIFO-Based CDC Bridge
 
 ## Where the Project Stands
 
