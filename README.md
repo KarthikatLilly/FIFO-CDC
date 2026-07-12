@@ -2,7 +2,7 @@
 
 ## Where the Project Stands
 
-You have a complete, spec-faithful async FIFO clock-domain-crossing bridge: a depth-16, 8-bit dual-clock FIFO that moves data from a 100 MHz write domain to a ~37 MHz read domain using Gray-coded pointers and double-flop synchronizers, plus a reset synchronizer per domain and a hysteresis backpressure controller. Alongside it sits an intentionally broken single-flop crossing that exists only to produce a "bad" timing number for contrast.
+This repo shows a complete, spec-faithful async FIFO clock-domain-crossing bridge: a depth-16, 8-bit dual-clock FIFO that moves data from a 100 MHz write domain to a ~37 MHz read domain using Gray-coded pointers and double-flop synchronizers, plus a reset synchronizer per domain and a hysteresis backpressure controller. Alongside it sits an intentionally broken single-flop crossing that exists only to produce a "bad" timing number for contrast.
 
 In the sandbox the RTL compiled clean (zero warnings) and the testbench ran to completion: **0 scoreboard mismatches**, 1931 writes accepted equalling 1931 reads back in order, max occupancy hitting 16, and the backpressure watermark asserting at exactly 14 and deasserting at exactly 10. The Python parser also ran against the generated VCD and its independent counts matched the testbench.
 
