@@ -14,9 +14,9 @@ What's not done is anything that only Vivado can produce: WNS, Fmax, MTBF, and u
 
 The split is by role, and it maps cleanly onto the folders.
 
-The eleven files in `rtl/` are all plain Verilog-2001 and are the only things that ever get synthesized into logic. Ten of them wire together under `async_fifo_top.v` — that's the actual FPGA design. The eleventh, `naive_cdc_bridge.v`, is also synthesizable RTL but is deliberately not instantiated anywhere in the top; it's a standalone module you synthesize on its own in a separate run purely to measure the "before" timing violation.
+The eleven files in `files/` are all plain Verilog-2001 and are the only things that ever get synthesized into logic. Ten of them wire together under `async_fifo_top.v` — that's the actual FPGA design. The eleventh, `naive_cdc_bridge.v`, is also synthesizable RTL but is deliberately not instantiated anywhere in the top; it's a standalone module you synthesize on its own in a separate run purely to measure the "before" timing violation.
 
-The one file in `tb/`, `tb_async_fifo.sv`, is SystemVerilog and is simulation-only — it never gets synthesized. It uses constructs that have no hardware meaning (a queue as the golden scoreboard, a covergroup for functional coverage, `$urandom` for the randomized stress test, `$dumpvars` for the waveform). Those are exactly the things a synthesizer would reject, which is why they live in the testbench and why the file carries the `.sv` extension while the design carries `.v`. In Vivado terms this becomes two different roles: the RTL files are design sources, the testbench is a simulation-only source.
+The one file in `files/`, `tb_async_fifo.sv`, is SystemVerilog and is simulation-only — it never gets synthesized. It uses constructs that have no hardware meaning (a queue as the golden scoreboard, a covergroup for functional coverage, `$urandom` for the randomized stress test, `$dumpvars` for the waveform). Those are exactly the things a synthesizer would reject, which is why they live in the testbench and why the file carries the `.sv` extension while the design carries `.v`. In Vivado terms this becomes two different roles: the RTL files are design sources, the testbench is a simulation-only source.
 
 Mental model:
 
@@ -48,11 +48,11 @@ Launch Vivado → **Create Project** → next through to **RTL Project**, and le
 
 ### 3. Add Design Sources
 
-**Add Sources → Add or create design sources** → add all eleven `rtl/*.v` files. Vivado will parse them and build the hierarchy; `async_fifo_top` should appear as the natural top of the ten-module tree, with `naive_cdc_bridge` sitting separately as an unreferenced module (that's expected — leave it).
+**Add Sources → Add or create design sources** → add all eleven `files/*.v` files. Vivado will parse them and build the hierarchy; `async_fifo_top` should appear as the natural top of the ten-module tree, with `naive_cdc_bridge` sitting separately as an unreferenced module (that's expected — leave it).
 
 ### 4. Add the Simulation Source
 
-**Add Sources → Add or create simulation sources** → add `tb/tb_async_fifo.sv` only. This keeps it out of synthesis. Vivado auto-detects `.sv` as SystemVerilog.
+**Add Sources → Add or create simulation sources** → add `files/tb_async_fifo.sv` only. This keeps it out of synthesis. Vivado auto-detects `.sv` as SystemVerilog.
 
 ### 5. Set the Tops
 
@@ -77,7 +77,7 @@ It writes `occupancy_vs_time.png`, `pointer_trajectory.png`, and `flag_timeline.
 
 ### 9. Add Constraints and Run Synthesis
 
-**Add Sources → Add or create constraints** → `constraints/async_fifo_top.xdc` (the two `create_clock` lines plus `set_clock_groups -asynchronous`). Then **Run Synthesis**. This is where the design is turned into a gate/LUT netlist.
+**Add Sources → Add or create constraints** → `files/async_fifo_top.xdc` (the two `create_clock` lines plus `set_clock_groups -asynchronous`). Then **Run Synthesis**. This is where the design is turned into a gate/LUT netlist.
 
 ### 10. Run Implementation
 
@@ -92,7 +92,7 @@ After synthesis, **Run Implementation** (place and route). When it finishes:
 
 ### 12. The "Before" Comparison Run
 
-Create a second synthesis run (**Design Runs → add run**) whose only source is `naive_cdc_bridge.v`, with `constraints/naive_cdc_bridge.xdc` — same two `create_clock` lines but **no** `set_clock_groups`. Set `naive_cdc_bridge` as top for that run. Because the async grouping is missing, Vivado analyzes the single-flop crossing as if it were a synchronous path and reports a large negative WNS. Screenshot that number (metric 5) and run Report CDC on it too, so you have the before/after pair that tells the whole CDC story.
+Create a second synthesis run (**Design Runs → add run**) whose only source is `files/naive_cdc_bridge.v`, with `files/naive_cdc_bridge.xdc` — same two `create_clock` lines but **no** `set_clock_groups`. Set `naive_cdc_bridge` as top for that run. Because the async grouping is missing, Vivado analyzes the single-flop crossing as if it were a synchronous path and reports a large negative WNS. Screenshot that number (metric 5) and run Report CDC on it too, so you have the before/after pair that tells the whole CDC story.
 
 ### 13. MTBF by Hand
 
@@ -106,16 +106,16 @@ Using the resolution time from the synchronized Timing Summary (roughly one rece
 
 ### Basic Usage
 
-From the project root (`async-fifo-cdc/`):
+From the project root (`FIFO-CDC/`), or use the absolute script path if you start Vivado elsewhere:
 
 ```bash
-vivado -mode batch -source scripts/build_vivado.tcl
+vivado -mode batch -source c:/KarDRIVE/Projects/Verilog/FIFO-CDC-Proj/FIFO-CDC/scripts/build_vivado.tcl
 ```
 
 To override the target part or skip stages, pass positional args — `part`, `run_sim`, `run_impl`, `run_naive`:
 
 ```bash
-vivado -mode batch -source scripts/build_vivado.tcl -tclargs xc7z020clg400-1 1 1 0
+vivado -mode batch -source c:/KarDRIVE/Projects/Verilog/FIFO-CDC-Proj/FIFO-CDC/scripts/build_vivado.tcl -tclargs xc7z020clg400-1 1 1 0
 ```
 
 That example targets a Zynq part and skips the naive run.

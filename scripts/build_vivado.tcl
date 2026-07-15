@@ -61,24 +61,24 @@ set proj_dir   [file join $build_dir $proj_name]
 create_project $proj_name $proj_dir -part $PART -force
 
 #-------------------------------------------------------------------------------
-# 2. Add design sources (all rtl/*.v). naive_cdc_bridge.v is added too but stays
+# 2. Add design sources (all files/*.v). naive_cdc_bridge.v is added too but stays
 #    an unreferenced module under the async_fifo_top hierarchy -- that's expected.
 #-------------------------------------------------------------------------------
-set rtl_files [glob [file join $proj_root rtl *.v]]
+set rtl_files [glob [file join $proj_root files *.v]]
 add_files -norecurse $rtl_files
 set_property top async_fifo_top [current_fileset]
 
 #-------------------------------------------------------------------------------
 # 3. Add the simulation-only source (SystemVerilog testbench)
 #-------------------------------------------------------------------------------
-add_files -fileset sim_1 -norecurse [file join $proj_root tb tb_async_fifo.sv]
+add_files -fileset sim_1 -norecurse [file join $proj_root files tb_async_fifo.sv]
 set_property top tb_async_fifo [get_filesets sim_1]
 
 #-------------------------------------------------------------------------------
 # 4. Add timing constraints (async clock groups)
 #-------------------------------------------------------------------------------
 add_files -fileset constrs_1 -norecurse \
-    [file join $proj_root constraints async_fifo_top.xdc]
+    [file join $proj_root files async_fifo_top.xdc]
 
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
@@ -174,10 +174,10 @@ if {$RUN_NAIVE} {
     set naive_dir  [file join $build_dir $naive_name]
     create_project $naive_name $naive_dir -part $PART -force
 
-    add_files -norecurse [file join $proj_root rtl naive_cdc_bridge.v]
+    add_files -norecurse [file join $proj_root files naive_cdc_bridge.v]
     set_property top naive_cdc_bridge [current_fileset]
     add_files -fileset constrs_1 -norecurse \
-        [file join $proj_root constraints naive_cdc_bridge.xdc]
+        [file join $proj_root files naive_cdc_bridge.xdc]
     update_compile_order -fileset sources_1
 
     launch_runs synth_1 -jobs 4
