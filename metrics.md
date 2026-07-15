@@ -9,11 +9,11 @@
 | 2 | Functional coverage % | `COVERAGE_PCT` METRIC print | 100.00 % |
 | 3 | Max occupancy reached / DEPTH | `MAX_OCCUPANCY` print + Python cross-check | 16 / 16 |
 | 4 | Backpressure watermark accuracy | `ALMOST_FULL_ASSERT_AT_OCC` / `..._DEASSERT_AT_OCC` prints | assert @ 14, deassert @ 10 (expect 14 / 10) |
-| 5 | WNS — naive single-flop crossing | Vivado Timing Summary, naive run | [ ] ns |
-| 6 | WNS — synchronized design | Vivado Timing Summary, top run | [ ] ns |
-| 7 | Fmax achieved post-implementation | Vivado Timing Summary | [ ] MHz |
-| 8 | Synchronizer MTBF (years) | Section 8.5 hand calc | [ ] years |
-| 9 | LUT / FF / BRAM utilization % | Vivado Utilization Report | LUT [ ]%, FF [ ]%, BRAM [ ]% |
+| 5 | WNS — naive single-flop crossing | Vivado Timing Summary, naive run | -0.395 ns |
+| 6 | WNS — synchronized design | Vivado Timing Summary, top run | 6.036 ns |
+| 7 | Fmax achieved post-implementation | Vivado Timing Summary | 252.27 MHz (wclk domain) |
+| 8 | Synchronizer MTBF (years) | Section 8.5 hand calc | ~1.4e9 years (estimate, cited τ/T0) |
+| 9 | LUT / FF / BRAM utilization % | Vivado Utilization Report | LUT 0.07%, FF 0.05%, BRAM 0.00% |
 | 10 | Directed + randomized test scenarios | Testbench structure | 2 directed + 1 randomized (10,000-cycle) |
 
 ## Raw METRIC lines captured from the simulation log

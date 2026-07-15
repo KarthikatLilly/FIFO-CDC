@@ -20,6 +20,7 @@ LEAF_SIGNALS below.
 
 import sys
 import os
+import re
 
 # Watermarks / depth -- keep in sync with the RTL parameters.
 ALMOST_FULL_LO = 10
@@ -54,6 +55,54 @@ def _leaf_name(ref):
     if "[" in base:
         base = base[: base.index("[")]
     return base
+
+
+def _parse_timescale_ns(raw_timescale):
+    """Convert a VCD timescale token into nanoseconds per timestamp unit."""
+    if not raw_timescale:
+        return 1.0
+
+    text = str(raw_timescale).strip().lower().replace(" ", "")
+    if "/" in text:
+        text = text.split("/")[-1]
+
+    match = re.match(r"(?P<magnitude>\d+(?:\.\d+)?)(?P<unit>fs|ps|ns|us|ms|s)$", text)
+    if not match:
+        return 1.0
+
+    magnitude = float(match.group("magnitude"))
+    unit = match.group("unit")
+    unit_to_ns = {
+        "fs": 1e-6,
+        "ps": 1e-3,
+        "ns": 1.0,
+        "us": 1e3,
+        "ms": 1e6,
+        "s": 1e9,
+    }
+    return magnitude * unit_to_ns[unit]
+
+
+def _get_vcd_timescale(vcd, path):
+    """Read the VCD timescale from the parser object or the raw file header."""
+    timescale = getattr(vcd, "timescale", None)
+    if timescale:
+        return timescale
+
+    with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+        in_timescale = False
+        timescale_lines = []
+        for line in handle:
+            stripped = line.strip()
+            if stripped == "$timescale":
+                in_timescale = True
+                continue
+            if in_timescale:
+                if stripped == "$end":
+                    break
+                timescale_lines.append(stripped)
+
+    return "".join(timescale_lines)
 
 
 def build_signal_map(vcd):
@@ -129,6 +178,7 @@ def main():
     print(f"Parsing {path} ...")
     vcd = VCDVCD(path)
     sigmap = build_signal_map(vcd)
+    time_scale_ns = _parse_timescale_ns(_get_vcd_timescale(vcd, path))
 
     missing = [s for s in LEAF_SIGNALS if s not in sigmap]
     if missing:
@@ -144,12 +194,14 @@ def main():
         if tv:
             t_end = max(t_end, tv[-1][0])
     t_end = t_end if t_end > 0 else 1
+    t_end_ns = t_end * time_scale_ns
 
     # ---- Plot 1: occupancy vs time -----------------------------------------
     if "wr_occupancy" in sigmap:
         t, v = sampled_series(vcd, sigmap["wr_occupancy"])
+        t = [x * time_scale_ns for x in t]
         v = [0 if x is None else x for x in v]
-        xs, ys = step_fill(t, v, t_end)
+        xs, ys = step_fill(t, v, t_end_ns)
         plt.figure(figsize=(11, 4))
         plt.plot(xs, ys, drawstyle="steps-post", label="wr_occupancy")
         for lvl, lab, c in [(ALMOST_FULL_LO, "ALMOST_FULL_LO", "tab:green"),
@@ -166,10 +218,12 @@ def main():
     if "wptr_bin" in sigmap and "rptr_bin" in sigmap:
         tw, vw = sampled_series(vcd, sigmap["wptr_bin"])
         tr, vr = sampled_series(vcd, sigmap["rptr_bin"])
+        tw = [x * time_scale_ns for x in tw]
+        tr = [x * time_scale_ns for x in tr]
         vw = [0 if x is None else (x & (DEPTH - 1)) for x in vw]
         vr = [0 if x is None else (x & (DEPTH - 1)) for x in vr]
-        xw, yw = step_fill(tw, vw, t_end)
-        xr, yr = step_fill(tr, vr, t_end)
+        xw, yw = step_fill(tw, vw, t_end_ns)
+        xr, yr = step_fill(tr, vr, t_end_ns)
         plt.figure(figsize=(11, 4))
         plt.plot(xw, yw, drawstyle="steps-post", label="wptr_bin (addr)")
         plt.plot(xr, yr, drawstyle="steps-post", label="rptr_bin (addr)")
@@ -185,8 +239,9 @@ def main():
         plt.figure(figsize=(11, 1.4 * len(flags) + 1))
         for i, f in enumerate(flags):
             t, v = sampled_series(vcd, sigmap[f])
+            t = [x * time_scale_ns for x in t]
             v = [0 if x is None else x for x in v]
-            xs, ys = step_fill(t, v, t_end)
+            xs, ys = step_fill(t, v, t_end_ns)
             ys = [y + i * 1.5 for y in ys]   # vertical offset per lane
             plt.plot(xs, ys, drawstyle="steps-post", label=f)
         plt.yticks([i * 1.5 + 0.5 for i in range(len(flags))], flags)
