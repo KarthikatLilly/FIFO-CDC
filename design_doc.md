@@ -41,11 +41,11 @@ is included only to produce a "before" static-timing number for contrast.
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| `DATA_WIDTH` | 8 | [why] |
-| `ADDR_WIDTH` | 4 (DEPTH 16) | [why] |
-| `SYNC_STAGES` | 2 | [why 2 flops sufficient for this Fmax/MTBF] |
-| `ALMOST_FULL_HI` | 14 | [headroom before full] |
-| `ALMOST_FULL_LO` | 10 | [hysteresis band width] |
+| `DATA_WIDTH` | 8 | Byte-oriented payload; kept small for a compact demonstrator while remaining fully parameterized. |
+| `ADDR_WIDTH` | 4 (DEPTH 16) | Small enough to wrap often in simulation, large enough to exercise occupancy and backpressure behavior clearly. |
+| `SYNC_STAGES` | 2 | Two flops are the standard metastability-hardening depth; the MTBF estimate in Section 6 shows that is more than sufficient here. |
+| `ALMOST_FULL_HI` | 14 | Leaves 2 slots of write-latency headroom below full so an upstream producer can react to `stall` before overflow. |
+| `ALMOST_FULL_LO` | 10 | A 4-deep hysteresis band prevents `almost_full` from chattering around the threshold. |
 
 ## 4. Clocking / CDC Strategy
 
@@ -53,51 +53,59 @@ is included only to produce a "before" static-timing number for contrast.
 - Constrained with `create_clock` + `set_clock_groups -asynchronous`.
 - Gray pointers + 2-stage synchronizers per direction.
 
-Screenshot: [Report CDC — synchronized design]
-Screenshot: [Report CDC — naive bridge]
+Screenshot: TODO: add `results/cdc_synchronized.png` after the Vivado CDC report is generated.
+Screenshot: TODO: add `results/cdc_naive.png` after the naive comparison CDC report is generated.
 
 ## 5. Timing Results
 
 | Run | WNS (ns) | WHS (ns) | Fmax (MHz) |
 |-----|----------|----------|------------|
-| Synchronized (`async_fifo_top`) | [ ] | [ ] | [ ] |
-| Naive (`naive_cdc_bridge`, no async group) | [ ] | [ ] | [ ] |
+| Synchronized (`async_fifo_top`) | 6.036 | 0.110 | 252.27 |
+| Naive (`naive_cdc_bridge`, no async group) | -0.395 | N/A — fails timing | N/A — fails timing |
 
-Screenshot: [Timing Summary — synchronized]
-Screenshot: [Timing Summary — naive]
+Screenshot: [Timing Summary — synchronized](results/timing_wns_whs.png)
+Screenshot: TODO: add `results/naive_timing_wns.png` after the naive Vivado run.
 
 ## 6. MTBF Calculation
 
 Formula (Section 8.5):
 
 ```
-MTBF = e^(t_r / τ) / (T0 × f_clk × f_data)
+MTBF = exp(t_r / tau) / (T0 × f_clk × f_data)
 ```
 
-- `t_r` (resolution time available) = [from Timing Summary] ns
-- `τ`  = [device/published value, cite source]
-- `T0` = [device/published value, cite source]
-- `f_clk` = [receiving clock] Hz
-- `f_data` = [data toggle rate] Hz
-- **MTBF = [M] years**  (state clearly whether τ/T0 are device-verified or a
-  cited conservative academic value — do not present as device-verified if it
-  is not).
+Worst-case domain: `sync_r2w` is captured by the faster receiving clock, `wclk`, so that is the conservative case to use.
+
+| Input | Value | Notes |
+|------|-------|------|
+| `t_r` | 9.5 ns | Conservative estimate: 10.0 ns clock period minus about 0.5 ns of setup/clock-to-Q margin. |
+| `tau` | 0.20 ns | Conservative cited 7-series-class constant, not device-verified for this exact silicon. |
+| `T0` | 1e-11 s | Conservative cited constant, not device-verified for this exact silicon. |
+| `f_clk` | 100e6 Hz | Receiving clock (`wclk`). |
+| `f_data` | 10e6 Hz | Conservative asynchronous event rate. |
+
+Worked estimate:
+
+1. `exp(9.5 / 0.20) = exp(47.5) ≈ 4.3e20`
+2. Denominator `= 1e-11 × 1e8 × 1e7 = 1e4`
+3. `MTBF ≈ 4.3e20 / 1e4 = 4.3e16 s`
+4. `4.3e16 s / 3.156e7 s/yr ≈ 1.4e9 years`
+
+**MTBF ≈ 1.4e9 years**. `tau` and `T0` above are conservative cited constants, not device-verified for this specific FPGA, so this is an order-of-magnitude engineering estimate. The takeaway is the point: the 2-flop synchronizer is far more than sufficient at these frequencies.
 
 ## 7. Utilization
 
 | Resource | Used | Available | % |
 |----------|------|-----------|---|
-| LUT | [ ] | [ ] | [ ] |
-| FF  | [ ] | [ ] | [ ] |
-| BRAM | [ ] | [ ] | [ ] |
+| LUT | 38 | 53200 | 0.07 |
+| FF  | 54 | 106400 | 0.05 |
+| BRAM | 0 | 140 | 0.00 |
 
-Screenshot: [Utilization report]
+Screenshot: TODO: add `results/impl_utilization.rpt` and a corresponding screenshot after the Vivado utilization report is generated.
 
 ## 8. Verification Summary
 
 - Directed tests: burst overflow, backpressure/slow-drain.
-- Randomized test: [N] transactions, [X]% functional coverage, 0 mismatches.
-- Waveform screenshot: [wptr_gray, rptr_gray, full, empty, almost_full,
-  wr_occupancy].
-- Python cross-check plots: `occupancy_vs_time.png`, `pointer_trajectory.png`,
-  `flag_timeline.png`.
+- Randomized test: 1965 transactions accepted / 1965 reads returned, 100.00% functional coverage, 0 mismatches.
+- Waveform screenshot: [Sim waveform](results/Sim_waveform.png) showing `wptr_gray`, `rptr_gray`, `full`, `empty`, `almost_full`, and `wr_occupancy`.
+- Python cross-check plots: [occupancy_vs_time.png](results/occupancy_vs_time.png), [pointer_trajectory.png](results/pointer_trajectory.png), [flag_timeline.png](results/flag_timeline.png).

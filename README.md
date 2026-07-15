@@ -6,7 +6,7 @@ This repo shows a complete, spec-faithful async FIFO clock-domain-crossing bridg
 
 In the sandbox the RTL compiled clean (zero warnings) and the testbench ran to completion: **0 scoreboard mismatches**, 1931 writes accepted equalling 1931 reads back in order, max occupancy hitting 16, and the backpressure watermark asserting at exactly 14 and deasserting at exactly 10. The Python parser also ran against the generated VCD and its independent counts matched the testbench.
 
-What's not done is anything that only Vivado can produce: WNS, Fmax, MTBF, and utilization — those are the blank rows in `docs/metrics.md`, and filling them is the point of the Vivado run.
+The Vivado implementation and utilization reports are now available in `results/`, along with the naive comparison timing report. The remaining artifacts called out in `task.md` are the CDC screenshots if you still want those captured for the documentation.
 
 ---
 
@@ -109,13 +109,13 @@ Using the resolution time from the synchronized Timing Summary (roughly one rece
 From the project root (`FIFO-CDC/`), or use the absolute script path if you start Vivado elsewhere:
 
 ```bash
-vivado -mode batch -source c:/KarDRIVE/Projects/Verilog/FIFO-CDC-Proj/FIFO-CDC/scripts/build_vivado.tcl
+vivado -mode batch -source scripts/build_vivado.tcl
 ```
 
 To override the target part or skip stages, pass positional args — `part`, `run_sim`, `run_impl`, `run_naive`:
 
 ```bash
-vivado -mode batch -source c:/KarDRIVE/Projects/Verilog/FIFO-CDC-Proj/FIFO-CDC/scripts/build_vivado.tcl -tclargs xc7z020clg400-1 1 1 0
+vivado -mode batch -source scripts/build_vivado.tcl -tclargs xc7z020clg400-1 1 1 0
 ```
 
 That example targets a Zynq part and skips the naive run.
@@ -141,7 +141,7 @@ That example targets a Zynq part and skips the naive run.
 
 ---
 
-After that, transcribe the numbers into `docs/metrics.md` (leaving anything a run hasn't yet produced blank) and you have the full contract filled: two directed tests plus a 10,000-transaction randomized run with coverage, the backpressure watermark accuracy, the before/after WNS pair, Fmax, MTBF, and utilization.
+After that, transcribe the numbers into `metrics.md` (leaving anything a run hasn't yet produced blank) and you have the full contract filled: two directed tests plus a 10,000-transaction randomized run with coverage, the backpressure watermark accuracy, the before/after WNS pair, Fmax, MTBF, and utilization.
 
 ### PowerShell Quick Run
 

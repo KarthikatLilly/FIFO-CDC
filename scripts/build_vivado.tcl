@@ -71,7 +71,7 @@ set_property top async_fifo_top [current_fileset]
 #-------------------------------------------------------------------------------
 # 3. Add the simulation-only source (SystemVerilog testbench)
 #-------------------------------------------------------------------------------
-add_files -fileset sim_1 -norecurse [file join $proj_root files tb_async_fifo.sv]
+add_files -fileset sim_1 -norecurse [file join $proj_root tb_async_fifo.sv]
 set_property top tb_async_fifo [get_filesets sim_1]
 
 #-------------------------------------------------------------------------------
@@ -202,7 +202,7 @@ if {$RUN_NAIVE} {
 }
 
 puts "\nAll requested steps complete."
-puts "Metrics to transcribe into docs/metrics.md:"
+puts "Metrics to transcribe into metrics.md:"
 puts "  #1-4,10 : grep METRIC: vivado.log"
 puts "  #5      : naive WNS (above)"
 puts "  #6,7    : synchronized WNS / Fmax (above)"
