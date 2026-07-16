@@ -196,7 +196,7 @@ if {$RUN_NAIVE} {
     if {$np ne ""} { set nwns [get_property SLACK $np] }
     puts "============================================================"
     puts " NAIVE (BROKEN) CROSSING RESULT"
-    puts "   WNS (setup) = $nwns ns   <-- expect large NEGATIVE"
+    puts "   WNS (setup) = $nwns ns   <-- expect NEGATIVE (small, single-flop crossing)"
     puts "   Reports: $reports_dir"
     puts "============================================================"
 }

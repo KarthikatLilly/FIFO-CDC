@@ -13,8 +13,10 @@
 | 6 | WNS — synchronized design | Vivado Timing Summary, top run | 6.036 ns |
 | 7 | Fmax achieved post-implementation | Vivado Timing Summary | 252.27 MHz (wclk domain) |
 | 8 | Synchronizer MTBF (years) | Section 8.5 hand calc | ~1.4e9 years (estimate, cited τ/T0) |
-| 9 | LUT / FF / BRAM utilization % | Vivado Utilization Report | LUT 0.07%, FF 0.05%, BRAM 0.00% |
+| 9 | LUT / FF / BRAM utilization | Vivado Utilization Report (`results/impl_utilization.rpt`) | LUT 38/53200 (0.07%, of which 32 logic + 6 memory), FF 54/106400 (0.05%), BRAM 0/140 (0.00% — `fifomem` maps to distributed RAM, not BRAM) |
 | 10 | Directed + randomized test scenarios | Testbench structure | 2 directed + 1 randomized (10,000-cycle) |
+| 11 | report_cdc — synchronized design | Vivado Report CDC (`results/cdc_synchronized.rpt`) | 18 endpoints total (13 wclk→rclk, 5 rclk→wclk), all Safe, 0 Unsafe, 0 Unknown (10 flagged "No ASYNC_REG" — advisory, see design_doc.md §9) |
+| 12 | report_cdc — naive design | Vivado Report CDC (`results/cdc_naive.rpt`) | Empty — "All paths are Safely Timed," 0 violations. This is expected, not a pass: the missing `set_clock_groups -asynchronous` in `naive_cdc_bridge.xdc` means Vivado never classifies the crossing as CDC in the first place; the naive bridge's failure shows up in STA (row 5) instead — see design_doc.md §4.1 |
 
 ## Raw METRIC lines captured from the simulation log
 

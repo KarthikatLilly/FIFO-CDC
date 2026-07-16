@@ -92,7 +92,7 @@ After synthesis, **Run Implementation** (place and route). When it finishes:
 
 ### 12. The "Before" Comparison Run
 
-Create a second synthesis run (**Design Runs → add run**) whose only source is `files/naive_cdc_bridge.v`, with `files/naive_cdc_bridge.xdc` — same two `create_clock` lines but **no** `set_clock_groups`. Set `naive_cdc_bridge` as top for that run. Because the async grouping is missing, Vivado analyzes the single-flop crossing as if it were a synchronous path and reports a large negative WNS. Screenshot that number (metric 5) and run Report CDC on it too, so you have the before/after pair that tells the whole CDC story.
+Create a second synthesis run (**Design Runs → add run**) whose only source is `files/naive_cdc_bridge.v`, with `files/naive_cdc_bridge.xdc` — same two `create_clock` lines but **no** `set_clock_groups`. Set `naive_cdc_bridge` as top for that run. Because the async grouping is missing, Vivado analyzes the single-flop crossing as if it were a synchronous path and reports a negative WNS (measured: -0.395 ns across 8 failing endpoints — small, since the crossing itself is trivial logic, but still a hard timing failure). Screenshot that number (metric 5) and run Report CDC on it too — that report comes back empty/clean, since with no async grouping Vivado never flags the crossing as CDC at all (see design_doc.md §4.1 for why STA and report_cdc disagree here) — so you have the before/after pair that tells the whole CDC story.
 
 ### 13. MTBF by Hand
 
@@ -135,7 +135,7 @@ That example targets a Zynq part and skips the naive run.
 
 **Fmax derivation.** The console printout computes `1000 / (10.0 − WNS)` for the write-clock domain as a quick figure. For the authoritative number, read `impl_timing_summary.rpt` directly, since the limiting path could be in either clock domain.
 
-**Naive run is synthesis-only.** The naive bridge only goes through synthesis, not implementation. Synthesis with the missing `set_clock_groups` is already enough for Vivado to analyze the crossing as synchronous and report the large negative slack — and it sidesteps any place-and-route fuss on a two-flop design.
+**Naive run is synthesis-only.** The naive bridge only goes through synthesis, not implementation. Synthesis with the missing `set_clock_groups` is already enough for Vivado to analyze the crossing as synchronous and report the negative slack (measured -0.395 ns) — and it sidesteps any place-and-route fuss on a two-flop design.
 
 **Caveat.** The script's Tcl control flow, path handling, and WNS/Fmax arithmetic have been validated with stubbed commands. The actual Vivado command behavior depends on your installed version. These are all stable, long-standing commands, so it should run clean — but if a `launch_simulation` runtime property or a `report_cdc` option ever complains on your specific version, those are isolated lines you can adjust without touching the rest.
 

@@ -53,18 +53,79 @@ is included only to produce a "before" static-timing number for contrast.
 - Constrained with `create_clock` + `set_clock_groups -asynchronous`.
 - Gray pointers + 2-stage synchronizers per direction.
 
-Screenshot: TODO: add `results/cdc_synchronized.png` after the Vivado CDC report is generated.
-Screenshot: TODO: add `results/cdc_naive.png` after the naive comparison CDC report is generated.
+Screenshot: [Report CDC — synchronized](results/cdc_synchronized.png) ([raw report](results/cdc_synchronized.rpt))
+Screenshot: [Report CDC — naive](results/cdc_naive.png) ([raw report](results/cdc_naive.rpt))
+
+### 4.1 Why the naive report_cdc is empty, not "unsafe"
+
+`naive_cdc_bridge.xdc` deliberately omits `set_clock_groups -asynchronous` (see
+§5). Without that constraint, Vivado does not know `wclk` and `rclk` are
+unrelated, so it treats the crossing as a related/synchronous path and times it
+with ordinary setup/hold analysis instead of flagging it as a clock-domain
+crossing. `report_cdc` on that design (`results/cdc_naive.rpt`) is therefore
+empty — "All paths are Safely Timed," 0 violations — because from `report_cdc`'s
+point of view there is no CDC to analyze in the first place.
+
+The danger of the naive bridge does not disappear; it just shows up in a
+different report. It surfaces as a static-timing failure instead: WNS
+-0.395 ns across 8 failing setup endpoints on the `wclk`→`rclk` path into
+`rd_data_bad_reg[*]` (§5), because Vivado is holding an unsynchronized,
+single-flop inter-clock path to a synchronous 1.000 ns setup requirement it
+cannot actually meet.
+
+`report_cdc` and static timing analysis (STA) are two different lenses on the
+same design:
+
+- With the `set_clock_groups -asynchronous` constraint **missing** (the naive
+  run): STA fails (negative WNS) because the tool wrongly assumes a timing
+  relationship between the clocks, but `report_cdc` is empty/clean because it
+  never gets flagged as an async crossing at all.
+- With the constraint **present** (the synchronized run): STA is clean (positive
+  WNS, §5) because the crossing is correctly excluded from synchronous timing,
+  and `report_cdc` independently classifies all 18 real crossings (§4.2) as
+  `Safe`, because they go through proper Gray-coded, multi-flop synchronizers.
+
+You cannot get both a flagged-unsafe CDC report and a failing WNS from a single
+naive run with this constraint style — the missing constraint determines which
+one of the two lenses catches the problem.
+
+### 4.2 Synchronized report_cdc summary
+
+`results/cdc_synchronized.rpt` reports 18 endpoints total across the two
+pointer-crossing directions, all classified `Safe`, 0 `Unsafe`, 0 `Unknown`:
+
+| From → To | Endpoints | Safe | Unsafe | Unknown | No ASYNC_REG |
+|-----------|-----------|------|--------|---------|--------------|
+| wclk → rclk | 13 | 13 | 0 | 0 | 5 |
+| rclk → wclk | 5 | 5 | 0 | 0 | 5 |
+
+The "No ASYNC_REG" column (10 endpoints total, 5 per direction) is a
+best-practice advisory, not a safety failure — see §9.
 
 ## 5. Timing Results
 
-| Run | WNS (ns) | WHS (ns) | Fmax (MHz) |
-|-----|----------|----------|------------|
-| Synchronized (`async_fifo_top`) | 6.036 | 0.110 | 252.27 |
-| Naive (`naive_cdc_bridge`, no async group) | -0.395 | N/A — fails timing | N/A — fails timing |
+| Run | WNS (ns) | WHS (ns) | Failing endpoints | Fmax (MHz) |
+|-----|----------|----------|--------------------|------------|
+| Synchronized (`async_fifo_top`) | +6.036 | +0.110 | 0 (all constraints met) | 252.27 (wclk domain) |
+| Naive (`naive_cdc_bridge`, no async group) | -0.395 | -0.093 | 8 setup / 8 hold | N/A — fails timing |
 
-Screenshot: [Timing Summary — synchronized](results/timing_wns_whs.png)
-Screenshot: TODO: add `results/naive_timing_wns.png` after the naive Vivado run.
+The naive failure is not a large violation — it is a small, single-flop-crossing
+negative slack (-0.395 ns setup) driven by the clock-edge relationship Vivado
+assumes once `set_clock_groups -asynchronous` is missing (a 1.000 ns setup
+requirement from `rclk` rise@81.000 ns vs. `wclk` rise@80.000 ns) and trivial
+logic (0 logic levels, `data_reg_reg[*]/C` → `rd_data_bad_reg[*]/D` direct).
+See `results/naive_timing_summary.rpt` for the full path detail and
+`results/naive_wns.txt` for the headline number.
+
+This is the before/after story: the naive bridge fails STA and is invisible to
+`report_cdc` (§4.1) because of the missing constraint; the synchronized design
+passes STA cleanly and has all 18 of its real crossings independently verified
+`Safe` by `report_cdc` (§4.2). Demonstrating both halves of that story —
+STA and CDC structural analysis answering two different questions — is the
+point of keeping the naive bridge in the repo.
+
+Screenshot: [Timing Summary — synchronized](results/timing_wns_whs.png), [Clock Summary](results/timing_clock_summary.png)
+Report: [naive_timing_summary.rpt](results/naive_timing_summary.rpt), [naive_wns.txt](results/naive_wns.txt)
 
 ## 6. MTBF Calculation
 
@@ -97,15 +158,56 @@ Worked estimate:
 
 | Resource | Used | Available | % |
 |----------|------|-----------|---|
-| LUT | 38 | 53200 | 0.07 |
-| FF  | 54 | 106400 | 0.05 |
-| BRAM | 0 | 140 | 0.00 |
+| Slice LUTs (total) | 38 | 53200 | 0.07 |
+| — LUT as Logic | 32 | 53200 | 0.06 |
+| — LUT as Memory (Distributed RAM) | 6 | 17400 | 0.03 |
+| Slice Registers (FF) | 54 | 106400 | 0.05 |
+| Block RAM Tile | 0 | 140 | 0.00 |
+| Bonded IOB | 31 | 200 | 15.50 |
+| BUFGCTRL | 2 | 32 | 6.25 |
 
-Screenshot: TODO: add `results/impl_utilization.rpt` and a corresponding screenshot after the Vivado utilization report is generated.
+Source: [`results/impl_utilization.rpt`](results/impl_utilization.rpt).
+
+The 6 LUTs mapped as memory ("LUT as Distributed RAM") are `fifomem`: a 16×8
+(128-bit) array is far below Xilinx's block-RAM threshold, so Vivado maps it to
+distributed RAM (LUTRAM) built from `RAMD32`/`RAMS32` primitives rather than a
+`RAMB18`/`RAMB36` tile. This is expected and correct — Block RAM Tile usage is
+0, confirming no BRAM was needed or consumed.
 
 ## 8. Verification Summary
 
 - Directed tests: burst overflow, backpressure/slow-drain.
 - Randomized test: 1965 transactions accepted / 1965 reads returned, 100.00% functional coverage, 0 mismatches.
+- Backpressure watermark: `almost_full` asserts at exactly occupancy 14 and deasserts at exactly occupancy 10, matching `ALMOST_FULL_HI`/`ALMOST_FULL_LO` (§3).
 - Waveform screenshot: [Sim waveform](results/Sim_waveform.png) showing `wptr_gray`, `rptr_gray`, `full`, `empty`, `almost_full`, and `wr_occupancy`.
 - Python cross-check plots: [occupancy_vs_time.png](results/occupancy_vs_time.png), [pointer_trajectory.png](results/pointer_trajectory.png), [flag_timeline.png](results/flag_timeline.png).
+
+## 9. Known improvements / future work
+
+These are documented as noted improvements, not implemented here — applying
+either would change the netlist and require re-running Vivado synthesis/
+implementation, which would make the currently committed reports under
+`results/` stale. RTL and constraints are left untouched.
+
+1. **Tag synchronizer registers with `ASYNC_REG`.** `results/cdc_synchronized.rpt`
+   flags 10 endpoints (5 per direction, §4.2) as "No ASYNC_REG" — Vivado's
+   best-practice advisory that the synchronizer chain's flip-flops aren't marked
+   so the placer knows to pack them tightly and avoid inserting extra logic/skew
+   between stages. The fix is to add the attribute to the synchronizer flops in
+   `sync_r2w.v` and `sync_w2r.v`, e.g.:
+   ```verilog
+   (* ASYNC_REG = "TRUE" *) reg [WIDTH-1:0] stage1;
+   (* ASYNC_REG = "TRUE" *) reg [WIDTH-1:0] stage2;
+   ```
+   This is a placement hint, not a functional change — it does not alter
+   simulation behavior, only place-and-route of the existing flops.
+
+2. **Second naive run with `set_clock_groups -asynchronous` added.** Adding the
+   async grouping to `naive_cdc_bridge.xdc` would flip which lens catches the
+   naive bridge's problem (§4.1): STA would go clean (the crossing is excluded
+   from synchronous timing), but `report_cdc` would then classify the single,
+   un-Gray-coded, single-flop crossing into `rd_data_bad` as `Unsafe` (a CDC-1
+   class violation — a data bus with no synchronization at all). Running that
+   variant alongside the current one would give a complete before/after matrix
+   (constraint present/absent × STA/CDC result) and make the complementary
+   failure mode visible in `report_cdc` output as well as in timing.
